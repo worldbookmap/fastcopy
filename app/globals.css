@@ -1,0 +1,43 @@
+:root {
+  --bg: #f7f1e8;
+  --paper: rgba(255, 252, 247, 0.86);
+  --paper-strong: #fffaf3;
+  --line: rgba(99, 74, 47, 0.14);
+  --ink: #26190f;
+  --muted: #6f5a46;
+  --accent: #b9622c;
+  --accent-soft: #efc79d;
+  --shadow: 0 28px 60px rgba(77, 46, 19, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(255, 215, 163, 0.55), transparent 36%),
+    radial-gradient(circle at right 15% top 18%, rgba(237, 174, 115, 0.28), transparent 24%),
+    linear-gradient(180deg, #fff6eb 0%, var(--bg) 46%, #f2eadf 100%);
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(185, 98, 44, 0.18);
+}
