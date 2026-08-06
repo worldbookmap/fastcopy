@@ -1,6 +1,7 @@
 "use client";
 
 import ContentCopyRounded from "@mui/icons-material/ContentCopyRounded";
+import DeleteOutlineRounded from "@mui/icons-material/DeleteOutlineRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import HistoryRounded from "@mui/icons-material/HistoryRounded";
 import NoteAddRounded from "@mui/icons-material/NoteAddRounded";
@@ -51,6 +52,8 @@ export function HomePage({ initialSnippets }: HomePageProps) {
   const [draft, setDraft] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [clearingHistory, setClearingHistory] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -99,6 +102,78 @@ export function HomePage({ initialSnippets }: HomePageProps) {
       setErrorMessage(error instanceof Error ? error.message : "저장에 실패했습니다.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteHistoryItem(snippet: SnippetRecord) {
+    const confirmed = window.confirm("이 과거 기록을 삭제할까요?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(snippet.id);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/snippets", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: snippet.id }),
+      });
+
+      const result = (await response.json()) as {
+        snippets?: SnippetRecord[];
+        message?: string;
+      };
+
+      if (!response.ok || !result.snippets) {
+        throw new Error(result.message ?? "기록 삭제에 실패했습니다.");
+      }
+
+      setSnippets(result.snippets);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "기록 삭제에 실패했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleClearHistory() {
+    const confirmed = window.confirm("과거 기록을 모두 삭제할까요? 최신 항목은 유지됩니다.");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setClearingHistory(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/snippets", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ scope: "history" }),
+      });
+
+      const result = (await response.json()) as {
+        snippets?: SnippetRecord[];
+        message?: string;
+      };
+
+      if (!response.ok || !result.snippets) {
+        throw new Error(result.message ?? "전체 삭제에 실패했습니다.");
+      }
+
+      setSnippets(result.snippets);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "전체 삭제에 실패했습니다.");
+    } finally {
+      setClearingHistory(false);
     }
   }
 
@@ -274,6 +349,8 @@ export function HomePage({ initialSnippets }: HomePageProps) {
                     최신 30개까지 저장되며, 첫 화면에는 가장 최근 항목만 크게 노출됩니다.
                   </Typography>
                 </Stack>
+
+                {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
               </Stack>
             </CardContent>
           </Card>
@@ -308,6 +385,16 @@ export function HomePage({ initialSnippets }: HomePageProps) {
                 <Alert severity="info">현재는 최신 항목만 있습니다.</Alert>
               ) : (
                 <Stack spacing={2}>
+                  <Stack direction="row" justifyContent="flex-end">
+                    <Button
+                      color="error"
+                      startIcon={<DeleteOutlineRounded />}
+                      onClick={handleClearHistory}
+                      disabled={clearingHistory}
+                    >
+                      {clearingHistory ? "전체 삭제 중..." : "과거 기록 전체 삭제"}
+                    </Button>
+                  </Stack>
                   {historySnippets.map((snippet, index) => (
                     <Paper
                       key={snippet.id}
@@ -336,9 +423,20 @@ export function HomePage({ initialSnippets }: HomePageProps) {
                               {formatDate(snippet.createdAt)}
                             </Typography>
                           </Stack>
-                          <Button size="small" onClick={() => handleCopy(snippet)}>
-                            {copiedId === snippet.id ? "복사 완료" : "복사"}
-                          </Button>
+                          <Stack direction="row" spacing={1}>
+                            <Button size="small" onClick={() => handleCopy(snippet)}>
+                              {copiedId === snippet.id ? "복사 완료" : "복사"}
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              startIcon={<DeleteOutlineRounded />}
+                              onClick={() => handleDeleteHistoryItem(snippet)}
+                              disabled={deletingId === snippet.id || clearingHistory}
+                            >
+                              {deletingId === snippet.id ? "삭제 중..." : "삭제"}
+                            </Button>
+                          </Stack>
                         </Stack>
                         <Divider />
                         <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.75 }}>
@@ -381,7 +479,6 @@ export function HomePage({ initialSnippets }: HomePageProps) {
             <Typography variant="body2" sx={{ color: "var(--muted)" }}>
               저장하면 즉시 첫 화면의 대표 문구가 바뀌고, 기존 내용은 아래 기록으로 내려갑니다.
             </Typography>
-            {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
             <TextField
               autoFocus
               multiline
